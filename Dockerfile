@@ -6,6 +6,15 @@ ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN corepack enable
 
+# Install gog (Google Workspace CLI) for Calendar/Drive/Gmail/etc skills.
+# We install a pinned release binary for linux_amd64.
+ARG GOGCLI_VERSION="0.9.0"
+RUN curl -fsSL "https://github.com/steipete/gogcli/releases/download/v${GOGCLI_VERSION}/gogcli_${GOGCLI_VERSION}_linux_amd64.tar.gz" -o /tmp/gogcli.tgz \
+  && tar -xzf /tmp/gogcli.tgz -C /tmp \
+  && mv /tmp/gog /usr/local/bin/gog \
+  && chmod +x /usr/local/bin/gog \
+  && rm -f /tmp/gogcli.tgz
+
 WORKDIR /app
 
 ARG CLAWDBOT_DOCKER_APT_PACKAGES=""

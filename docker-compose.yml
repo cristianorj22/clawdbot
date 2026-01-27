@@ -1,9 +1,23 @@
+# Shared build config for the local image (so `docker compose build` works).
+x-clawdbot-build: &clawdbot_build
+  context: .
+  args:
+    GOGCLI_VERSION: ${GOGCLI_VERSION:-0.9.0}
+
 services:
   clawdbot-gateway:
+    build: *clawdbot_build
     image: ${CLAWDBOT_IMAGE:-clawdbot:local}
     environment:
       HOME: /home/node
       TERM: xterm-256color
+      # Persist gog (Google Workspace CLI) config inside CLAWDBOT_CONFIG_DIR
+      XDG_CONFIG_HOME: /home/node/.clawdbot/xdg
+      GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-file}
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD}
+      GOG_ACCOUNT: ${GOG_ACCOUNT}
+      # Required for OpenAI audio transcription provider (STT). Codex OAuth is not sufficient.
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
@@ -12,6 +26,8 @@ services:
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
+      # Your downloaded Google OAuth Desktop client JSON(s). Keep this under .docker/ (gitignored).
+      - ./.docker/google:/home/node/.clawdbot/google:ro
       - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/clawd
     ports:
       - "${CLAWDBOT_GATEWAY_PORT:-18789}:18789"
@@ -30,11 +46,17 @@ services:
       ]
 
   clawdbot-cli:
+    build: *clawdbot_build
     image: ${CLAWDBOT_IMAGE:-clawdbot:local}
     environment:
       HOME: /home/node
       TERM: xterm-256color
       BROWSER: echo
+      XDG_CONFIG_HOME: /home/node/.clawdbot/xdg
+      GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-file}
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD}
+      GOG_ACCOUNT: ${GOG_ACCOUNT}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
@@ -42,6 +64,7 @@ services:
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
       - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
+      - ./.docker/google:/home/node/.clawdbot/google:ro
       - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/clawd
     stdin_open: true
     tty: true
