@@ -69,3 +69,15 @@ USER.md
 
 # local tooling
 .serena/
+
+# env
+.env
+
+# docker local state
+.docker/
+
+# antigravit kit 2.0
+.agent/
+
+# clawdbot config
+.docker/clawdbot-config/clawdbot.json
