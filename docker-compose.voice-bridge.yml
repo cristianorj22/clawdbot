@@ -1,0 +1,34 @@
+services:
+  voice-router:
+    build:
+      context: ./tools/voice-bridge
+      dockerfile: Dockerfile.router
+    image: clawdbot-voice-router:local
+    environment:
+      # Clawdbot gateway (inside the same compose network)
+      CLAWDBOT_GATEWAY_URL: http://clawdbot-gateway:18789
+      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      CLAWDBOT_AGENT_ID: ${CLAWDBOT_AGENT_ID:-main}
+
+      # STT (MVP): OpenAI Whisper API
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_STT_MODEL: ${OPENAI_STT_MODEL:-gpt-4o-mini-transcribe}
+      VOICE_LANGUAGE: ${VOICE_LANGUAGE:-pt}
+
+      # Feature flags
+      VOICE_ACTIVATION_MODE: ${VOICE_ACTIVATION_MODE:-hotword}
+      VOICE_HOTWORD_PHRASE: ${VOICE_HOTWORD_PHRASE:-jarvis}
+      VOICE_PERSONAPLEX_ENABLED: ${VOICE_PERSONAPLEX_ENABLED:-0}
+      PERSONAPLEX_MODE: ${PERSONAPLEX_MODE:-disabled}
+
+      # (Optional) PersonaPlex offline integration
+      PERSONAPLEX_HF_TOKEN: ${PERSONAPLEX_HF_TOKEN}
+      PERSONAPLEX_VOICE_PROMPT: ${PERSONAPLEX_VOICE_PROMPT:-NATM1.pt}
+      PERSONAPLEX_TEXT_PROMPT: ${PERSONAPLEX_TEXT_PROMPT:-You enjoy having a good conversation.}
+      PERSONAPLEX_CPU_OFFLOAD: ${PERSONAPLEX_CPU_OFFLOAD:-0}
+    ports:
+      - "8787:8787"
+    depends_on:
+      - clawdbot-gateway
+    restart: unless-stopped
+

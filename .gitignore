@@ -67,6 +67,10 @@ IDENTITY.md
 USER.md
 .tgz
 
+# voice bridge local venv/cache
+tools/voice-bridge/.venv/
+tools/voice-bridge/**/__pycache__/
+
 # local tooling
 .serena/
 

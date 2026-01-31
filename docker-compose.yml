@@ -21,6 +21,11 @@ services:
       # ElevenLabs TTS (Text-to-Speech)
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      # Browser relay runs in a separate container and is accessed remotely by the Gateway.
+      # We reuse the gateway token for simplicity in local setups.
+      # The browser control server must run on the Windows host (Edge/Chrome extension requires 127.0.0.1).
+      CLAWDBOT_BROWSER_CONTROL_URL: http://host.docker.internal:18791
+      CLAWDBOT_BROWSER_CONTROL_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}

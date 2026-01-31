@@ -1,0 +1,31 @@
+services:
+  clawdbot-browser-serve:
+    build:
+      context: .
+      args:
+        GOGCLI_VERSION: ${GOGCLI_VERSION:-0.9.0}
+    image: ${CLAWDBOT_IMAGE:-clawdbot:local}
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      # Required for serving the browser control API securely when binding non-loopback.
+      CLAWDBOT_BROWSER_CONTROL_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+    ports:
+      - "18791:18791"
+      - "18792:18792"
+    init: true
+    restart: unless-stopped
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "browser",
+        "serve",
+        "--bind",
+        "0.0.0.0",
+        "--port",
+        "18791",
+        "--token",
+        "${CLAWDBOT_GATEWAY_TOKEN}"
+      ]
+

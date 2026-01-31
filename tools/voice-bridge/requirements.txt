@@ -1,0 +1,9 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+requests>=2.31.0
+
+# Windows listener (fallback voice + mic capture)
+sounddevice>=0.4.6
+webrtcvad>=2.0.10
+numpy>=1.26.0
+pyttsx3>=2.90
