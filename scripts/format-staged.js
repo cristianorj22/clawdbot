@@ -78,18 +78,69 @@ function getGitPaths(args, repoRoot) {
   return splitNullDelimited(result.stdout ?? "");
 }
 
+function chunkArgsByCharLimit(files, maxChars) {
+  if (files.length === 0) return [];
+  const chunks = [];
+  let current = [];
+  let currentChars = 0;
+
+  for (const filePath of files) {
+    // Approximate command-line usage: " <arg>"
+    const argChars = filePath.length + 1;
+    if (current.length > 0 && currentChars + argChars > maxChars) {
+      chunks.push(current);
+      current = [filePath];
+      currentChars = argChars;
+      continue;
+    }
+    current.push(filePath);
+    currentChars += argChars;
+  }
+
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
 function formatFiles(repoRoot, oxfmt, files) {
-  const result = spawnSync(oxfmt.command, ["--write", ...oxfmt.args, ...files], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
-  return result.status === 0;
+  // On Windows, very large merges can exceed the CreateProcess command-line
+  // limit when we pass too many file paths at once. Chunk args to keep the
+  // pre-commit hook reliable.
+  // Note: when we run a `.cmd` shim we must use `shell: true`, which routes
+  // through `cmd.exe` and brings a much smaller command-line limit.
+  const maxChars = process.platform === "win32" ? 7_000 : 100_000;
+  const baseArgs = ["--write", ...oxfmt.args];
+  const useShell = process.platform === "win32" && /\.cmd$/i.test(oxfmt.command);
+
+  for (const chunk of chunkArgsByCharLimit(files, maxChars)) {
+    const result = spawnSync(oxfmt.command, [...baseArgs, ...chunk], {
+      cwd: repoRoot,
+      shell: useShell,
+      windowsHide: true,
+      stdio: "inherit",
+    });
+    if (result.error) {
+      process.stderr.write(
+        `[pre-commit] oxfmt failed to start: ${result.error.message}\n`,
+      );
+      return false;
+    }
+    if (result.status !== 0) return false;
+  }
+
+  return true;
 }
 
 function stageFiles(repoRoot, files) {
   if (files.length === 0) return true;
-  const result = runGitCommand(["add", "--", ...files], { cwd: repoRoot, stdio: "inherit" });
-  return result.status === 0;
+  const maxChars = process.platform === "win32" ? 24_000 : 100_000;
+  for (const chunk of chunkArgsByCharLimit(files, maxChars)) {
+    const result = runGitCommand(["add", "--", ...chunk], {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
+    if (result.status !== 0) return false;
+  }
+  return true;
 }
 
 function main() {
