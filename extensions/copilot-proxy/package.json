@@ -1,9 +1,9 @@
 {
-  "name": "@clawdbot/copilot-proxy",
-  "version": "2026.1.25",
+  "name": "@openclaw/copilot-proxy",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot Copilot Proxy provider plugin",
-  "clawdbot": {
+  "description": "OpenClaw Copilot Proxy provider plugin",
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ]

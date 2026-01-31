@@ -130,9 +130,6 @@ export const SandboxBrowserSchema = z
     headless: z.boolean().optional(),
     enableNoVnc: z.boolean().optional(),
     allowHostControl: z.boolean().optional(),
-    allowedControlUrls: z.array(z.string()).optional(),
-    allowedControlHosts: z.array(z.string()).optional(),
-    allowedControlPorts: z.array(z.number().int().positive()).optional(),
     autoStart: z.boolean().optional(),
     autoStartTimeoutMs: z.number().int().positive().optional(),
   })
@@ -307,6 +304,7 @@ export const MemorySearchSchema = z
   .object({
     enabled: z.boolean().optional(),
     sources: z.array(z.union([z.literal("memory"), z.literal("sessions")])).optional(),
+    extraPaths: z.array(z.string()).optional(),
     experimental: z
       .object({
         sessionMemory: z.boolean().optional(),

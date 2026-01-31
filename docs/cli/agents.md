@@ -1,10 +1,10 @@
 ---
-summary: "CLI reference for `clawdbot agents` (list/add/delete/set identity)"
+summary: "CLI reference for `openclaw agents` (list/add/delete/set identity)"
 read_when:
   - You want multiple isolated agents (workspaces + routing + auth)
 ---
 
-# `clawdbot agents`
+# `openclaw agents`
 
 Manage isolated agents (workspaces + auth + routing).
 
@@ -15,17 +15,17 @@ Related:
 ## Examples
 
 ```bash
-clawdbot agents list
-clawdbot agents add work --workspace ~/clawd-work
-clawdbot agents set-identity --workspace ~/clawd --from-identity
-clawdbot agents set-identity --agent main --avatar avatars/clawd.png
-clawdbot agents delete work
+openclaw agents list
+openclaw agents add work --workspace ~/.openclaw/workspace-work
+openclaw agents set-identity --workspace ~/.openclaw/workspace --from-identity
+openclaw agents set-identity --agent main --avatar avatars/openclaw.png
+openclaw agents delete work
 ```
 
 ## Identity files
 
 Each agent workspace can include an `IDENTITY.md` at the workspace root:
-- Example path: `~/clawd/IDENTITY.md`
+- Example path: `~/.openclaw/workspace/IDENTITY.md`
 - `set-identity --from-identity` reads from the workspace root (or an explicit `--identity-file`)
 
 Avatar paths resolve relative to the workspace root.
@@ -41,13 +41,13 @@ Avatar paths resolve relative to the workspace root.
 Load from `IDENTITY.md`:
 
 ```bash
-clawdbot agents set-identity --workspace ~/clawd --from-identity
+openclaw agents set-identity --workspace ~/.openclaw/workspace --from-identity
 ```
 
 Override fields explicitly:
 
 ```bash
-clawdbot agents set-identity --agent main --name "Clawd" --emoji "🦞" --avatar avatars/clawd.png
+openclaw agents set-identity --agent main --name "OpenClaw" --emoji "🦞" --avatar avatars/openclaw.png
 ```
 
 Config sample:
@@ -59,10 +59,10 @@ Config sample:
       {
         id: "main",
         identity: {
-          name: "Clawd",
+          name: "OpenClaw",
           theme: "space lobster",
           emoji: "🦞",
-          avatar: "avatars/clawd.png"
+          avatar: "avatars/openclaw.png"
         }
       }
     ]

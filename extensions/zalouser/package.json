@@ -1,13 +1,13 @@
 {
-  "name": "@clawdbot/zalouser",
-  "version": "2026.1.25",
+  "name": "@openclaw/zalouser",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot Zalo Personal Account plugin via zca-cli",
+  "description": "OpenClaw Zalo Personal Account plugin via zca-cli",
   "dependencies": {
-    "clawdbot": "workspace:*",
+    "openclaw": "workspace:*",
     "@sinclair/typebox": "0.34.47"
   },
-  "clawdbot": {
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ],
@@ -25,7 +25,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@clawdbot/zalouser",
+      "npmSpec": "@openclaw/zalouser",
       "localPath": "extensions/zalouser",
       "defaultChoice": "npm"
     }

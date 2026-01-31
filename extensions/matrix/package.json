@@ -1,9 +1,9 @@
 {
-  "name": "@clawdbot/matrix",
-  "version": "2026.1.25",
+  "name": "@openclaw/matrix",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot Matrix channel plugin",
-  "clawdbot": {
+  "description": "OpenClaw Matrix channel plugin",
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ],
@@ -18,7 +18,7 @@
       "quickstartAllowFrom": true
     },
     "install": {
-      "npmSpec": "@clawdbot/matrix",
+      "npmSpec": "@openclaw/matrix",
       "localPath": "extensions/matrix",
       "defaultChoice": "npm"
     }
@@ -31,6 +31,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "clawdbot": "workspace:*"
+    "openclaw": "workspace:*"
   }
 }

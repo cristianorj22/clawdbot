@@ -1,9 +1,9 @@
 {
-  "name": "@clawdbot/bluebubbles",
-  "version": "2026.1.25",
+  "name": "@openclaw/bluebubbles",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot BlueBubbles channel plugin",
-  "clawdbot": {
+  "description": "OpenClaw BlueBubbles channel plugin",
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ],
@@ -25,7 +25,7 @@
       "order": 75
     },
     "install": {
-      "npmSpec": "@clawdbot/bluebubbles",
+      "npmSpec": "@openclaw/bluebubbles",
       "localPath": "extensions/bluebubbles",
       "defaultChoice": "npm"
     }

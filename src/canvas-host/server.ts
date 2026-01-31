@@ -1,3 +1,4 @@
+import * as fsSync from "node:fs";
 import fs from "node:fs/promises";
 import http, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
@@ -8,6 +9,7 @@ import type { Duplex } from "node:stream";
 import chokidar from "chokidar";
 import { type WebSocket, WebSocketServer } from "ws";
 import { isTruthyEnvValue } from "../infra/env.js";
+import { SafeOpenError, openFileWithinRoot } from "../infra/fs-safe.js";
 import { detectMime } from "../media/mime.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { ensureDir, resolveUserPath } from "../utils.js";
@@ -58,7 +60,7 @@ function defaultIndexHTML() {
   return `<!doctype html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Clawdbot Canvas</title>
+<title>OpenClaw Canvas</title>
 <style>
   html, body { height: 100%; margin: 0; background: #000; color: #fff; font: 16px/1.4 -apple-system, BlinkMacSystemFont, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
   .wrap { min-height: 100%; display: grid; place-items: center; padding: 24px; }
@@ -76,7 +78,7 @@ function defaultIndexHTML() {
 <div class="wrap">
   <div class="card">
     <div class="title">
-      <h1>Clawdbot Canvas</h1>
+      <h1>OpenClaw Canvas</h1>
       <div class="sub">Interactive test page (auto-reload enabled)</div>
     </div>
 
@@ -97,26 +99,40 @@ function defaultIndexHTML() {
   const statusEl = document.getElementById("status");
   const log = (msg) => { logEl.textContent = String(msg); };
 
-  const hasIOS = () => !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.clawdbotCanvasA2UIAction);
-  const hasAndroid = () => !!(window.clawdbotCanvasA2UIAction && typeof window.clawdbotCanvasA2UIAction.postMessage === "function");
-  const hasHelper = () => typeof window.clawdbotSendUserAction === "function";
+  const hasIOS = () =>
+    !!(
+      window.webkit &&
+      window.webkit.messageHandlers &&
+      window.webkit.messageHandlers.openclawCanvasA2UIAction
+    );
+  const hasAndroid = () =>
+    !!(
+      (window.openclawCanvasA2UIAction &&
+        typeof window.openclawCanvasA2UIAction.postMessage === "function")
+    );
+  const hasHelper = () => typeof window.openclawSendUserAction === "function";
   statusEl.innerHTML =
     "Bridge: " +
     (hasHelper() ? "<span class='ok'>ready</span>" : "<span class='bad'>missing</span>") +
     " · iOS=" + (hasIOS() ? "yes" : "no") +
     " · Android=" + (hasAndroid() ? "yes" : "no");
 
-  window.addEventListener("clawdbot:a2ui-action-status", (ev) => {
+  const onStatus = (ev) => {
     const d = ev && ev.detail || {};
     log("Action status: id=" + (d.id || "?") + " ok=" + String(!!d.ok) + (d.error ? (" error=" + d.error) : ""));
-  });
+  };
+  window.addEventListener("openclaw:a2ui-action-status", onStatus);
 
   function send(name, sourceComponentId) {
     if (!hasHelper()) {
-      log("No action bridge found. Ensure you're viewing this on an iOS/Android Clawdbot node canvas.");
+      log("No action bridge found. Ensure you're viewing this on an iOS/Android OpenClaw node canvas.");
       return;
     }
-    const ok = window.clawdbotSendUserAction({
+    const sendUserAction =
+      typeof window.openclawSendUserAction === "function"
+        ? window.openclawSendUserAction
+        : undefined;
+    const ok = sendUserAction({
       name,
       surfaceId: "main",
       sourceComponentId,
@@ -145,34 +161,36 @@ async function resolveFilePath(rootReal: string, urlPath: string) {
   const rel = normalized.replace(/^\/+/, "");
   if (rel.split("/").some((p) => p === "..")) return null;
 
-  let candidate = path.join(rootReal, rel);
+  const tryOpen = async (relative: string) => {
+    try {
+      return await openFileWithinRoot({ rootDir: rootReal, relativePath: relative });
+    } catch (err) {
+      if (err instanceof SafeOpenError) return null;
+      throw err;
+    }
+  };
+
   if (normalized.endsWith("/")) {
-    candidate = path.join(candidate, "index.html");
+    return await tryOpen(path.posix.join(rel, "index.html"));
   }
 
+  const candidate = path.join(rootReal, rel);
   try {
-    const st = await fs.stat(candidate);
+    const st = await fs.lstat(candidate);
+    if (st.isSymbolicLink()) return null;
     if (st.isDirectory()) {
-      candidate = path.join(candidate, "index.html");
+      return await tryOpen(path.posix.join(rel, "index.html"));
     }
   } catch {
     // ignore
   }
 
-  const rootPrefix = rootReal.endsWith(path.sep) ? rootReal : `${rootReal}${path.sep}`;
-  try {
-    const lstat = await fs.lstat(candidate);
-    if (lstat.isSymbolicLink()) return null;
-    const real = await fs.realpath(candidate);
-    if (!real.startsWith(rootPrefix)) return null;
-    return real;
-  } catch {
-    return null;
-  }
+  return await tryOpen(rel);
 }
 
 function isDisabledByEnv() {
-  if (isTruthyEnvValue(process.env.CLAWDBOT_SKIP_CANVAS_HOST)) return true;
+  if (isTruthyEnvValue(process.env.OPENCLAW_SKIP_CANVAS_HOST)) return true;
+  if (isTruthyEnvValue(process.env.OPENCLAW_SKIP_CANVAS_HOST)) return true;
   if (process.env.NODE_ENV === "test") return true;
   if (process.env.VITEST) return true;
   return false;
@@ -201,6 +219,18 @@ async function prepareCanvasRoot(rootDir: string) {
   return rootReal;
 }
 
+function resolveDefaultCanvasRoot(): string {
+  const candidates = [path.join(os.homedir(), ".openclaw", "canvas")];
+  const existing = candidates.find((dir) => {
+    try {
+      return fsSync.statSync(dir).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  return existing ?? candidates[0];
+}
+
 export async function createCanvasHostHandler(
   opts: CanvasHostHandlerOpts,
 ): Promise<CanvasHostHandler> {
@@ -215,7 +245,7 @@ export async function createCanvasHostHandler(
     };
   }
 
-  const rootDir = resolveUserPath(opts.rootDir ?? path.join(os.homedir(), "clawd", "canvas"));
+  const rootDir = resolveUserPath(opts.rootDir ?? resolveDefaultCanvasRoot());
   const rootReal = await prepareCanvasRoot(rootDir);
 
   const liveReload = opts.liveReload !== false;
@@ -295,13 +325,8 @@ export async function createCanvasHostHandler(
 
       let urlPath = url.pathname;
       if (basePath !== "/") {
-        if (urlPath === basePath) {
-          urlPath = "/";
-        } else if (urlPath.startsWith(`${basePath}/`)) {
-          urlPath = urlPath.slice(basePath.length) || "/";
-        } else {
-          return false;
-        }
+        if (urlPath !== basePath && !urlPath.startsWith(`${basePath}/`)) return false;
+        urlPath = urlPath === basePath ? "/" : urlPath.slice(basePath.length) || "/";
       }
 
       if (req.method !== "GET" && req.method !== "HEAD") {
@@ -311,13 +336,13 @@ export async function createCanvasHostHandler(
         return true;
       }
 
-      const filePath = await resolveFilePath(rootReal, urlPath);
-      if (!filePath) {
+      const opened = await resolveFilePath(rootReal, urlPath);
+      if (!opened) {
         if (urlPath === "/" || urlPath.endsWith("/")) {
           res.statusCode = 404;
           res.setHeader("Content-Type", "text/html; charset=utf-8");
           res.end(
-            `<!doctype html><meta charset="utf-8" /><title>Clawdbot Canvas</title><pre>Missing file.\nCreate ${rootDir}/index.html</pre>`,
+            `<!doctype html><meta charset="utf-8" /><title>OpenClaw Canvas</title><pre>Missing file.\nCreate ${rootDir}/index.html</pre>`,
           );
           return true;
         }
@@ -327,22 +352,30 @@ export async function createCanvasHostHandler(
         return true;
       }
 
-      const lower = filePath.toLowerCase();
+      const { handle, realPath } = opened;
+      let data: Buffer;
+      try {
+        data = await handle.readFile();
+      } finally {
+        await handle.close().catch(() => {});
+      }
+
+      const lower = realPath.toLowerCase();
       const mime =
         lower.endsWith(".html") || lower.endsWith(".htm")
           ? "text/html"
-          : ((await detectMime({ filePath })) ?? "application/octet-stream");
+          : ((await detectMime({ filePath: realPath })) ?? "application/octet-stream");
 
       res.setHeader("Cache-Control", "no-store");
       if (mime === "text/html") {
-        const html = await fs.readFile(filePath, "utf8");
+        const html = data.toString("utf8");
         res.setHeader("Content-Type", "text/html; charset=utf-8");
         res.end(liveReload ? injectCanvasLiveReload(html) : html);
         return true;
       }
 
       res.setHeader("Content-Type", mime);
-      res.end(await fs.readFile(filePath));
+      res.end(data);
       return true;
     } catch (err) {
       opts.runtime.error(`canvasHost request failed: ${String(err)}`);

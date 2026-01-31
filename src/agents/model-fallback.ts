@@ -1,4 +1,4 @@
-import type { ClawdbotConfig } from "../config/config.js";
+import type { OpenClawConfig } from "../config/config.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "./defaults.js";
 import {
   coerceToFailoverError,
@@ -14,9 +14,11 @@ import {
   resolveModelRefFromString,
 } from "./model-selection.js";
 import type { FailoverReason } from "./pi-embedded-helpers.js";
-import { isProfileInCooldown } from "./auth-profiles/usage.js";
-import { loadAuthProfileStore } from "./auth-profiles/store.js";
-import { resolveAuthProfileOrder } from "./auth-profiles/order.js";
+import {
+  ensureAuthProfileStore,
+  isProfileInCooldown,
+  resolveAuthProfileOrder,
+} from "./auth-profiles.js";
 
 type ModelCandidate = {
   provider: string;
@@ -46,7 +48,7 @@ function shouldRethrowAbort(err: unknown): boolean {
 }
 
 function buildAllowedModelKeys(
-  cfg: ClawdbotConfig | undefined,
+  cfg: OpenClawConfig | undefined,
   defaultProvider: string,
 ): Set<string> | null {
   const rawAllowlist = (() => {
@@ -64,7 +66,7 @@ function buildAllowedModelKeys(
 }
 
 function resolveImageFallbackCandidates(params: {
-  cfg: ClawdbotConfig | undefined;
+  cfg: OpenClawConfig | undefined;
   defaultProvider: string;
   modelOverride?: string;
 }): ModelCandidate[] {
@@ -125,7 +127,7 @@ function resolveImageFallbackCandidates(params: {
 }
 
 function resolveFallbackCandidates(params: {
-  cfg: ClawdbotConfig | undefined;
+  cfg: OpenClawConfig | undefined;
   provider: string;
   model: string;
   /** Optional explicit fallbacks list; when provided (even empty), replaces agents.defaults.model.fallbacks. */
@@ -189,9 +191,10 @@ function resolveFallbackCandidates(params: {
 }
 
 export async function runWithModelFallback<T>(params: {
-  cfg: ClawdbotConfig | undefined;
+  cfg: OpenClawConfig | undefined;
   provider: string;
   model: string;
+  agentDir?: string;
   /** Optional explicit fallbacks list; when provided (even empty), replaces agents.defaults.model.fallbacks. */
   fallbacksOverride?: string[];
   run: (provider: string, model: string) => Promise<T>;
@@ -214,16 +217,14 @@ export async function runWithModelFallback<T>(params: {
     model: params.model,
     fallbacksOverride: params.fallbacksOverride,
   });
-
-  const authStore = params.cfg ? loadAuthProfileStore() : null;
-
+  const authStore = params.cfg
+    ? ensureAuthProfileStore(params.agentDir, { allowKeychainPrompt: false })
+    : null;
   const attempts: FallbackAttempt[] = [];
   let lastError: unknown;
 
   for (let i = 0; i < candidates.length; i += 1) {
     const candidate = candidates[i] as ModelCandidate;
-
-    // Skip candidates that are in cooldown
     if (authStore) {
       const profileIds = resolveAuthProfileOrder({
         cfg: params.cfg,
@@ -238,12 +239,11 @@ export async function runWithModelFallback<T>(params: {
           provider: candidate.provider,
           model: candidate.model,
           error: `Provider ${candidate.provider} is in cooldown (all profiles unavailable)`,
-          reason: "auth", // Best effort classification
+          reason: "rate_limit",
         });
         continue;
       }
     }
-
     try {
       const result = await params.run(candidate.provider, candidate.model);
       return {
@@ -299,7 +299,7 @@ export async function runWithModelFallback<T>(params: {
 }
 
 export async function runWithImageModelFallback<T>(params: {
-  cfg: ClawdbotConfig | undefined;
+  cfg: OpenClawConfig | undefined;
   modelOverride?: string;
   run: (provider: string, model: string) => Promise<T>;
   onError?: (attempt: {

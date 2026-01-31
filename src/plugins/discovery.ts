@@ -3,7 +3,11 @@ import path from "node:path";
 
 import { resolveConfigDir, resolveUserPath } from "../utils.js";
 import { resolveBundledPluginsDir } from "./bundled-dir.js";
-import type { ClawdbotPackageManifest, PackageManifest } from "./manifest.js";
+import {
+  getPackageManifestMetadata,
+  type OpenClawPackageManifest,
+  type PackageManifest,
+} from "./manifest.js";
 import type { PluginDiagnostic, PluginOrigin } from "./types.js";
 
 const EXTENSION_EXTS = new Set([".ts", ".js", ".mts", ".cts", ".mjs", ".cjs"]);
@@ -18,7 +22,7 @@ export type PluginCandidate = {
   packageVersion?: string;
   packageDescription?: string;
   packageDir?: string;
-  packageClawdbot?: ClawdbotPackageManifest;
+  packageManifest?: OpenClawPackageManifest;
 };
 
 export type PluginDiscoveryResult = {
@@ -44,7 +48,7 @@ function readPackageManifest(dir: string): PackageManifest | null {
 }
 
 function resolvePackageExtensions(manifest: PackageManifest): string[] {
-  const raw = manifest.clawdbot?.extensions;
+  const raw = getPackageManifestMetadata(manifest)?.extensions;
   if (!Array.isArray(raw)) return [];
   return raw.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
 }
@@ -59,7 +63,7 @@ function deriveIdHint(params: {
   if (!rawPackageName) return base;
 
   // Prefer the unscoped name so config keys stay stable even when the npm
-  // package is scoped (example: @clawdbot/voice-call -> voice-call).
+  // package is scoped (example: @openclaw/voice-call -> voice-call).
   const unscoped = rawPackageName.includes("/")
     ? (rawPackageName.split("/").pop() ?? rawPackageName)
     : rawPackageName;
@@ -93,7 +97,7 @@ function addCandidate(params: {
     packageVersion: manifest?.version?.trim() || undefined,
     packageDescription: manifest?.description?.trim() || undefined,
     packageDir: params.packageDir,
-    packageClawdbot: manifest?.clawdbot,
+    packageManifest: getPackageManifestMetadata(manifest ?? undefined),
   });
 }
 
@@ -277,7 +281,7 @@ function discoverFromPath(params: {
   }
 }
 
-export function discoverClawdbotPlugins(params: {
+export function discoverOpenClawPlugins(params: {
   workspaceDir?: string;
   extraPaths?: string[];
 }): PluginDiscoveryResult {
@@ -302,15 +306,17 @@ export function discoverClawdbotPlugins(params: {
   }
   if (workspaceDir) {
     const workspaceRoot = resolveUserPath(workspaceDir);
-    const workspaceExt = path.join(workspaceRoot, ".clawdbot", "extensions");
-    discoverInDirectory({
-      dir: workspaceExt,
-      origin: "workspace",
-      workspaceDir: workspaceRoot,
-      candidates,
-      diagnostics,
-      seen,
-    });
+    const workspaceExtDirs = [path.join(workspaceRoot, ".openclaw", "extensions")];
+    for (const dir of workspaceExtDirs) {
+      discoverInDirectory({
+        dir,
+        origin: "workspace",
+        workspaceDir: workspaceRoot,
+        candidates,
+        diagnostics,
+        seen,
+      });
+    }
   }
 
   const globalDir = path.join(resolveConfigDir(), "extensions");

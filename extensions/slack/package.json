@@ -1,9 +1,9 @@
 {
-  "name": "@clawdbot/slack",
-  "version": "2026.1.25",
+  "name": "@openclaw/slack",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot Slack channel plugin",
-  "clawdbot": {
+  "description": "OpenClaw Slack channel plugin",
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ]

@@ -1,9 +1,10 @@
 import JSON5 from "json5";
 
+import { LEGACY_MANIFEST_KEYS, MANIFEST_KEY } from "../compat/legacy-names.js";
 import { parseFrontmatterBlock } from "../markdown/frontmatter.js";
 import { parseBooleanValue } from "../utils/boolean.js";
 import type {
-  ClawdbotHookMetadata,
+  OpenClawHookMetadata,
   HookEntry,
   HookInstallSpec,
   HookInvocationPolicy,
@@ -62,33 +63,41 @@ function parseFrontmatterBool(value: string | undefined, fallback: boolean): boo
   return parsed === undefined ? fallback : parsed;
 }
 
-export function resolveClawdbotMetadata(
+export function resolveOpenClawMetadata(
   frontmatter: ParsedHookFrontmatter,
-): ClawdbotHookMetadata | undefined {
+): OpenClawHookMetadata | undefined {
   const raw = getFrontmatterValue(frontmatter, "metadata");
   if (!raw) return undefined;
   try {
-    const parsed = JSON5.parse(raw) as { clawdbot?: unknown };
+    const parsed = JSON5.parse(raw) as Record<string, unknown>;
     if (!parsed || typeof parsed !== "object") return undefined;
-    const clawdbot = (parsed as { clawdbot?: unknown }).clawdbot;
-    if (!clawdbot || typeof clawdbot !== "object") return undefined;
-    const clawdbotObj = clawdbot as Record<string, unknown>;
+    const metadataRawCandidates = [MANIFEST_KEY, ...LEGACY_MANIFEST_KEYS];
+    let metadataRaw: unknown;
+    for (const key of metadataRawCandidates) {
+      const candidate = parsed[key];
+      if (candidate && typeof candidate === "object") {
+        metadataRaw = candidate;
+        break;
+      }
+    }
+    if (!metadataRaw || typeof metadataRaw !== "object") return undefined;
+    const metadataObj = metadataRaw as Record<string, unknown>;
     const requiresRaw =
-      typeof clawdbotObj.requires === "object" && clawdbotObj.requires !== null
-        ? (clawdbotObj.requires as Record<string, unknown>)
+      typeof metadataObj.requires === "object" && metadataObj.requires !== null
+        ? (metadataObj.requires as Record<string, unknown>)
         : undefined;
-    const installRaw = Array.isArray(clawdbotObj.install) ? (clawdbotObj.install as unknown[]) : [];
+    const installRaw = Array.isArray(metadataObj.install) ? (metadataObj.install as unknown[]) : [];
     const install = installRaw
       .map((entry) => parseInstallSpec(entry))
       .filter((entry): entry is HookInstallSpec => Boolean(entry));
-    const osRaw = normalizeStringList(clawdbotObj.os);
-    const eventsRaw = normalizeStringList(clawdbotObj.events);
+    const osRaw = normalizeStringList(metadataObj.os);
+    const eventsRaw = normalizeStringList(metadataObj.events);
     return {
-      always: typeof clawdbotObj.always === "boolean" ? clawdbotObj.always : undefined,
-      emoji: typeof clawdbotObj.emoji === "string" ? clawdbotObj.emoji : undefined,
-      homepage: typeof clawdbotObj.homepage === "string" ? clawdbotObj.homepage : undefined,
-      hookKey: typeof clawdbotObj.hookKey === "string" ? clawdbotObj.hookKey : undefined,
-      export: typeof clawdbotObj.export === "string" ? clawdbotObj.export : undefined,
+      always: typeof metadataObj.always === "boolean" ? metadataObj.always : undefined,
+      emoji: typeof metadataObj.emoji === "string" ? metadataObj.emoji : undefined,
+      homepage: typeof metadataObj.homepage === "string" ? metadataObj.homepage : undefined,
+      hookKey: typeof metadataObj.hookKey === "string" ? metadataObj.hookKey : undefined,
+      export: typeof metadataObj.export === "string" ? metadataObj.export : undefined,
       os: osRaw.length > 0 ? osRaw : undefined,
       events: eventsRaw.length > 0 ? eventsRaw : [],
       requires: requiresRaw
@@ -115,5 +124,5 @@ export function resolveHookInvocationPolicy(
 }
 
 export function resolveHookKey(hookName: string, entry?: HookEntry): string {
-  return entry?.clawdbot?.hookKey ?? hookName;
+  return entry?.metadata?.hookKey ?? hookName;
 }

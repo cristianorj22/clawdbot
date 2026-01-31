@@ -165,7 +165,7 @@ export async function fetchWithGuard(params: {
       try {
         const response = await fetch(parsedUrl, {
           signal: controller.signal,
-          headers: { "User-Agent": "Clawdbot-Gateway/1.0" },
+          headers: { "User-Agent": "OpenClaw-Gateway/1.0" },
           redirect: "manual",
           dispatcher,
         } as RequestInit & { dispatcher: Dispatcher });

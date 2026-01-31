@@ -7,12 +7,12 @@ x-clawdbot-build: &clawdbot_build
 services:
   clawdbot-gateway:
     build: *clawdbot_build
-    image: ${CLAWDBOT_IMAGE:-clawdbot:local}
+    image: ${CLAWDBOT_IMAGE:-openclaw:local}
     environment:
       HOME: /home/node
       TERM: xterm-256color
       # Persist gog (Google Workspace CLI) config inside CLAWDBOT_CONFIG_DIR
-      XDG_CONFIG_HOME: /home/node/.clawdbot/xdg
+      XDG_CONFIG_HOME: /home/node/.openclaw/xdg
       GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-file}
       GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD}
       GOG_ACCOUNT: ${GOG_ACCOUNT}
@@ -20,25 +20,29 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       # ElevenLabs TTS (Text-to-Speech)
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      # Back-compat: keep CLAWDBOT_* but map into OpenClaw runtime env.
       CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      OPENCLAW_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
       # Browser relay runs in a separate container and is accessed remotely by the Gateway.
       # We reuse the gateway token for simplicity in local setups.
       # The browser control server must run on the Windows host (Edge/Chrome extension requires 127.0.0.1).
       CLAWDBOT_BROWSER_CONTROL_URL: http://host.docker.internal:18791
       CLAWDBOT_BROWSER_CONTROL_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      OPENCLAW_BROWSER_CONTROL_URL: http://host.docker.internal:18791
+      OPENCLAW_BROWSER_CONTROL_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
       # Your downloaded Google OAuth Desktop client JSON(s). Keep this under .docker/ (gitignored).
-      - ./.docker/google:/home/node/.clawdbot/google:ro
-      - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/clawd
+      - ./.docker/google:/home/node/.openclaw/google:ro
+      - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/.openclaw/workspace
     ports:
-      - "${CLAWDBOT_GATEWAY_PORT:-18789}:18789"
-      - "${CLAWDBOT_BRIDGE_PORT:-18790}:18790"
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
     command:
@@ -47,19 +51,19 @@ services:
         "dist/index.js",
         "gateway",
         "--bind",
-        "${CLAWDBOT_GATEWAY_BIND:-lan}",
+        "${OPENCLAW_GATEWAY_BIND:-lan}",
         "--port",
-        "${CLAWDBOT_GATEWAY_PORT:-18789}"
+        "${OPENCLAW_GATEWAY_PORT:-18789}"
       ]
 
   clawdbot-cli:
     build: *clawdbot_build
-    image: ${CLAWDBOT_IMAGE:-clawdbot:local}
+    image: ${CLAWDBOT_IMAGE:-openclaw:local}
     environment:
       HOME: /home/node
       TERM: xterm-256color
       BROWSER: echo
-      XDG_CONFIG_HOME: /home/node/.clawdbot/xdg
+      XDG_CONFIG_HOME: /home/node/.openclaw/xdg
       GOG_KEYRING_BACKEND: ${GOG_KEYRING_BACKEND:-file}
       GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD}
       GOG_ACCOUNT: ${GOG_ACCOUNT}
@@ -67,13 +71,15 @@ services:
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      CLAWDBOT_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
+      OPENCLAW_GATEWAY_TOKEN: ${CLAWDBOT_GATEWAY_TOKEN}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.clawdbot
-      - ./.docker/google:/home/node/.clawdbot/google:ro
-      - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/clawd
+      - ${CLAWDBOT_CONFIG_DIR}:/home/node/.openclaw
+      - ./.docker/google:/home/node/.openclaw/google:ro
+      - ${CLAWDBOT_WORKSPACE_DIR}:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true

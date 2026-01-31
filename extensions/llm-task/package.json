@@ -1,9 +1,9 @@
 {
-  "name": "@clawdbot/llm-task",
-  "version": "2026.1.25",
+  "name": "@openclaw/llm-task",
+  "version": "2026.1.29",
   "type": "module",
-  "description": "Clawdbot JSON-only LLM task plugin",
-  "clawdbot": {
+  "description": "OpenClaw JSON-only LLM task plugin",
+  "openclaw": {
     "extensions": [
       "./index.ts"
     ]
