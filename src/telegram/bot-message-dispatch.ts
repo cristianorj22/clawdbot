@@ -20,6 +20,7 @@ import { resolveTelegramDraftStreamingChunking } from "./draft-chunking.js";
 import { createTelegramDraftStream } from "./draft-stream.js";
 import { cacheSticker, describeStickerImage } from "./sticker-cache.js";
 import { resolveAgentDir } from "../agents/agent-scope.js";
+import { tryHandleTelegramGoogleCalendarMessage } from "./google-calendar.js";
 
 const EMPTY_RESPONSE_FALLBACK = "No response generated. Please try again.";
 
@@ -65,6 +66,49 @@ export const dispatchTelegramMessage = async ({
     reactionApi,
     removeAckAfterReply,
   } = context;
+
+  // Deterministic “Google Agenda” handler (uses `gog` directly), so we don't rely on
+  // the LLM choosing tools correctly for calendar writes.
+  // Only triggers in DMs to avoid surprising group behavior.
+  const rawText = (msg.text ?? msg.caption ?? "").trim();
+  const fallbackText = [
+    rawText,
+    (ctxPayload?.CommandBody ?? "").trim(),
+    (ctxPayload?.RawBody ?? "").trim(),
+    (ctxPayload?.Body ?? "").trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  if (!isGroup && fallbackText) {
+    try {
+      const handled = await tryHandleTelegramGoogleCalendarMessage(fallbackText);
+      if (handled.handled && handled.replyText) {
+        await deliverReplies({
+          replies: [{ text: handled.replyText, replyToId: String(msg.message_id) }],
+          chatId: String(chatId),
+          token: opts.token,
+          runtime,
+          bot,
+          replyToMode,
+          textLimit,
+          messageThreadId: resolvedThreadId,
+          tableMode: resolveMarkdownTableMode({
+            cfg,
+            channel: "telegram",
+            accountId: route.accountId,
+          }),
+          chunkMode: resolveChunkMode(cfg, "telegram", route.accountId),
+          onVoiceRecording: sendRecordVoice,
+          linkPreview: telegramCfg.linkPreview,
+        });
+        return;
+      }
+    } catch (err) {
+      runtime.error?.(danger(`telegram google calendar handler failed: ${String(err)}`));
+      // fall through to normal agent flow
+    }
+  }
 
   const isPrivateChat = msg.chat.type === "private";
   const draftMaxChars = Math.min(textLimit, 4096);

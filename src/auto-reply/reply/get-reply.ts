@@ -15,6 +15,7 @@ import { applyMediaUnderstanding } from "../../media-understanding/apply.js";
 import { applyLinkUnderstanding } from "../../link-understanding/apply.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { resolveDefaultModel } from "./directive-handling.js";
+import { maybeHandleDeterministicReply } from "./deterministic.js";
 import { resolveReplyDirectives } from "./get-reply-directives.js";
 import { handleInlineActions } from "./get-reply-inline-actions.js";
 import { runPreparedReply } from "./get-reply-run.js";
@@ -94,6 +95,13 @@ export async function getReplyFromConfig(
       ctx: finalized,
       cfg,
     });
+  }
+
+  // Deterministic replies (before LLM): used for “do the thing” integrations
+  // that should not depend on prompt/tool selection.
+  const deterministic = await maybeHandleDeterministicReply(finalized);
+  if (deterministic) {
+    return deterministic;
   }
 
   const commandAuthorized = finalized.CommandAuthorized;
